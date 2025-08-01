@@ -8,6 +8,8 @@ export interface Config {
 	outputPath: string;
 	verbose: boolean;
 	quiet: boolean;
+	databasePath: string;
+	concurrency: number;
 }
 
 export interface RaindropItem {
@@ -32,7 +34,7 @@ export interface VideoProcessingResult {
 	outputFile?: string;
 	error?: string;
 	generatedTags?: string[];
-	frontMatter?: Record<string, any>;
+	frontMatter?: Record<string, unknown>;
 }
 
 export interface CLIOptions {
@@ -47,11 +49,15 @@ export interface CLIOptions {
 	output?: string;
 	config?: string;
 	updateTags?: boolean;
+	force?: boolean;
+	listProcessed?: boolean;
+	dbPath?: string;
+	concurrency?: number;
 }
 
 export interface PythonEnvironment {
 	pythonPath: string;
-	type: 'pipx' | 'conda' | 'system' | 'custom';
+	type: "pipx" | "conda" | "system" | "custom";
 	valid: boolean;
 }
 
@@ -59,7 +65,7 @@ export enum LogLevel {
 	DEBUG = 0,
 	INFO = 1,
 	WARN = 2,
-	ERROR = 3
+	ERROR = 3,
 }
 
 export interface ProcessingStats {
@@ -68,6 +74,10 @@ export interface ProcessingStats {
 	processed: number;
 	successful: number;
 	failed: number;
+	skipped: number;
 	startTime: Date;
 	endTime?: Date;
 }
+
+// Re-export ProcessedVideo from database module for convenience
+export type { ProcessedVideo } from "./db/database.ts";

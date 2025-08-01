@@ -70,10 +70,10 @@ export class Logger {
 	private formatMessage(level: LogLevel, message: string, icon?: string): string {
 		const timestamp = new Date().toLocaleTimeString();
 		const levelName = LogLevel[level];
-		
+
 		let color = "";
 		let defaultIcon = "";
-		
+
 		switch (level) {
 			case LogLevel.DEBUG:
 				color = colors.gray;
@@ -95,7 +95,7 @@ export class Logger {
 
 		const displayIcon = icon || defaultIcon;
 		const coloredMessage = `${color}${message}${colors.reset}`;
-		
+
 		if (this.verbose) {
 			return `${colors.gray}[${timestamp}] ${levelName}${colors.reset} ${displayIcon} ${coloredMessage}`;
 		} else {
@@ -158,7 +158,7 @@ export class Logger {
 		this.success(message);
 	}
 
-	// Progress bar functionality  
+	// Progress bar functionality
 	async progress(current: number, total: number, message: string): Promise<void> {
 		if (this.quiet) return;
 
@@ -166,12 +166,12 @@ export class Logger {
 		const barLength = 20;
 		const filledLength = Math.floor((current / total) * barLength);
 		const bar = "█".repeat(filledLength) + "░".repeat(barLength - filledLength);
-		
+
 		const progressMessage = `[${bar}] ${percentage}% (${current}/${total}) ${message}`;
-		
+
 		// Clear line and write progress
 		await Deno.stdout.write(new TextEncoder().encode(`\r${progressMessage}`));
-		
+
 		// If complete, add newline
 		if (current === total) {
 			await Deno.stdout.write(new TextEncoder().encode("\n"));

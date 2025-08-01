@@ -28,10 +28,12 @@ export class RaindropAPI {
 	async fetchBookmarks(
 		collectionId: string,
 		tag?: string,
-		maxItems?: number
+		maxItems?: number,
 	): Promise<RaindropItem[]> {
-		this.logger.bookmark(`Fetching bookmarks from collection ${collectionId}${tag ? ` with tag #${tag}` : ''}`);
-		
+		this.logger.bookmark(
+			`Fetching bookmarks from collection ${collectionId}${tag ? ` with tag #${tag}` : ""}`,
+		);
+
 		let allBookmarks: RaindropItem[] = [];
 		let page = 0;
 		let hasMore = true;
@@ -39,24 +41,27 @@ export class RaindropAPI {
 		while (hasMore && (!maxItems || allBookmarks.length < maxItems)) {
 			try {
 				const bookmarks = await this.fetchBookmarksPage(collectionId, tag, page);
-				
+
 				if (bookmarks.length === 0) {
 					hasMore = false;
 					break;
 				}
 
 				allBookmarks = allBookmarks.concat(bookmarks);
-				this.logger.debug(`Fetched page ${page + 1}, got ${bookmarks.length} bookmarks (total: ${allBookmarks.length})`);
+				this.logger.debug(
+					`Fetched page ${
+						page + 1
+					}, got ${bookmarks.length} bookmarks (total: ${allBookmarks.length})`,
+				);
 
 				// Check if we got a full page (indicating more results might be available)
 				hasMore = bookmarks.length === RaindropAPI.DEFAULT_PER_PAGE;
 				page++;
 
-				// Rate limiting
-				if (hasMore) {
+				// Rate limiting - only apply delay if we need more data
+				if (hasMore && (!maxItems || allBookmarks.length < maxItems)) {
 					await this.delay(RaindropAPI.RATE_LIMIT_DELAY);
 				}
-
 			} catch (error) {
 				if (error instanceof RaindropAPIError) {
 					throw error;
@@ -81,10 +86,10 @@ export class RaindropAPI {
 	private async fetchBookmarksPage(
 		collectionId: string,
 		tag?: string,
-		page: number = 0
+		page: number = 0,
 	): Promise<RaindropItem[]> {
 		const url = this.buildURL(collectionId, tag, page);
-		
+
 		this.logger.debug(`Requesting: ${url}`);
 
 		const response = await fetch(url, {
@@ -96,7 +101,7 @@ export class RaindropAPI {
 
 		if (!response.ok) {
 			let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-			
+
 			try {
 				const errorData = await response.json();
 				if (errorData.message) {
@@ -108,11 +113,13 @@ export class RaindropAPI {
 
 			// Provide helpful error messages for common issues
 			if (response.status === 401) {
-				errorMessage = "Invalid Raindrop token. Please check your RAINDROP_TOKEN environment variable.";
+				errorMessage =
+					"Invalid Raindrop token. Please check your RAINDROP_TOKEN environment variable.";
 			} else if (response.status === 403) {
 				errorMessage = "Access denied. Please check your Raindrop token permissions.";
 			} else if (response.status === 404) {
-				errorMessage = `Collection not found. Please check if collection ID "${collectionId}" exists and is accessible.`;
+				errorMessage =
+					`Collection not found. Please check if collection ID "${collectionId}" exists and is accessible.`;
 			}
 
 			throw new RaindropAPIError(errorMessage, response.status);
@@ -147,7 +154,7 @@ export class RaindropAPI {
 	async testConnection(): Promise<boolean> {
 		try {
 			this.logger.debug("Testing Raindrop API connection...");
-			
+
 			const response = await fetch(`${RaindropAPI.API_BASE_URL}/user`, {
 				headers: {
 					"Authorization": `Bearer ${this.token}`,
@@ -157,7 +164,7 @@ export class RaindropAPI {
 
 			if (response.ok) {
 				const userData = await response.json();
-				this.logger.debug(`Connected as: ${userData.user?.fullName || 'Unknown user'}`);
+				this.logger.debug(`Connected as: ${userData.user?.fullName || "Unknown user"}`);
 				return true;
 			} else {
 				this.logger.error(`API test failed: HTTP ${response.status}`);
@@ -175,7 +182,7 @@ export class RaindropAPI {
 	 */
 	async getCollectionInfo(collectionId: string): Promise<{ title: string; count: number } | null> {
 		try {
-			const url = collectionId === "0" 
+			const url = collectionId === "0"
 				? `${RaindropAPI.API_BASE_URL}/raindrops/0`
 				: `${RaindropAPI.API_BASE_URL}/collection/${collectionId}`;
 
@@ -193,7 +200,7 @@ export class RaindropAPI {
 				} else {
 					return {
 						title: data.item?.title || "Unknown Collection",
-						count: data.item?.count || 0
+						count: data.item?.count || 0,
 					};
 				}
 			}
@@ -210,9 +217,9 @@ export class RaindropAPI {
 	async updateBookmarkTags(bookmarkId: string, tags: string[]): Promise<boolean> {
 		try {
 			this.logger.debug(`Updating tags for bookmark ${bookmarkId}`);
-			
+
 			const url = `${RaindropAPI.API_BASE_URL}/raindrop/${bookmarkId}`;
-			
+
 			const response = await fetch(url, {
 				method: "PUT",
 				headers: {
@@ -220,7 +227,7 @@ export class RaindropAPI {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					tags: tags
+					tags: tags,
 				}),
 			});
 
@@ -240,9 +247,85 @@ export class RaindropAPI {
 	}
 
 	/**
+	 * Fetch bookmarks with early termination when enough videos are found
+	 */
+	async fetchBookmarksWithVideoFiltering(
+		collectionId: string,
+		tag?: string,
+		maxVideos?: number,
+		videoDetector?: { isVideoBookmark: (bookmark: RaindropItem) => boolean },
+	): Promise<RaindropItem[]> {
+		if (!videoDetector || !maxVideos) {
+			// Fallback to regular fetching if no video detector or max videos specified
+			return this.fetchBookmarks(collectionId, tag, maxVideos ? maxVideos * 3 : undefined);
+		}
+
+		this.logger.bookmark(
+			`Smart fetching: looking for ${maxVideos} videos from collection ${collectionId}${
+				tag ? ` with tag #${tag}` : ""
+			}`,
+		);
+
+		let allBookmarks: RaindropItem[] = [];
+		let videoCount = 0;
+		let page = 0;
+		let hasMore = true;
+
+		while (hasMore && videoCount < maxVideos) {
+			try {
+				const bookmarks = await this.fetchBookmarksPage(collectionId, tag, page);
+
+				if (bookmarks.length === 0) {
+					hasMore = false;
+					break;
+				}
+
+				// Filter and count videos in this batch
+				const videosInBatch = bookmarks.filter((bookmark) =>
+					videoDetector.isVideoBookmark(bookmark)
+				);
+				videoCount += videosInBatch.length;
+
+				allBookmarks = allBookmarks.concat(bookmarks);
+				this.logger.debug(
+					`Fetched page ${
+						page + 1
+					}, got ${bookmarks.length} bookmarks, ${videosInBatch.length} videos (total videos: ${videoCount})`,
+				);
+
+				// Check if we have enough videos or got a full page
+				hasMore = bookmarks.length === RaindropAPI.DEFAULT_PER_PAGE;
+				page++;
+
+				// Early termination if we have enough videos
+				if (videoCount >= maxVideos) {
+					this.logger.debug(`Found ${videoCount} videos, stopping early`);
+					hasMore = false;
+				}
+
+				// Rate limiting - only apply delay if we need more data
+				if (hasMore) {
+					await this.delay(RaindropAPI.RATE_LIMIT_DELAY);
+				}
+			} catch (error) {
+				if (error instanceof RaindropAPIError) {
+					throw error;
+				}
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				throw new RaindropAPIError(`Failed to fetch bookmarks: ${errorMessage}`);
+			}
+		}
+
+		this.logger.success(
+			`Successfully fetched ${allBookmarks.length} bookmarks with ${videoCount} videos`,
+		);
+		return allBookmarks;
+	}
+
+	/**
 	 * Simple delay helper for rate limiting
 	 */
 	private delay(ms: number): Promise<void> {
-		return new Promise(resolve => setTimeout(resolve, ms));
+		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 }
