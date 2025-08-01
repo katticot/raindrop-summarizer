@@ -1,0 +1,29 @@
+{
+  "tasks": {
+    "start": "deno run --allow-all main.ts",
+    "dev": "deno run --allow-all --watch main.ts",
+    "help": "deno run --allow-all main.ts --help",
+    "version": "deno run --allow-all main.ts --version",
+    "dry-run": "deno run --allow-all main.ts --dry-run --verbose",
+    "check": "deno check main.ts",
+    "fmt": "deno fmt",
+    "lint": "deno lint"
+  },
+  "fmt": {
+    "useTabs": true,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "include": ["src/", "main.ts"],
+    "exclude": ["summaries/"]
+  },
+  "lint": {
+    "include": ["src/", "main.ts"],
+    "exclude": ["summaries/"]
+  },
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  }
+}
