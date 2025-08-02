@@ -1,230 +1,451 @@
-# Raindrop Video Summarizer
+# 🌧️ Raindrop Video Summarizer
 
-This project provides a convenient way to summarize videos from your Raindrop.io bookmarks using Google Cloud's Vertex AI (Gemini model). It features a modular TypeScript/Deno orchestrator with an enhanced CLI interface and a robust Python script for AI-powered video summarization.
+[![Deno](https://img.shields.io/badge/deno-1.45+-blue.svg)](https://deno.land/)
+[![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://python.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Features
+An intelligent video summarization tool that automatically processes YouTube videos from your Raindrop.io bookmarks using Google Cloud's Vertex AI (Gemini model). Features both a powerful CLI interface and a modern web dashboard for managing video summarization workflows.
 
-* **Enhanced Configuration Management**: Interactive setup wizard, validation, and error handling
-* **Robust API Integration**: Rate limiting, connection testing, and comprehensive error handling
-* **Smart Video Detection**: Platform-specific ID extraction and URL validation
-* **Intelligent Python Integration**: Auto-detects pipx, conda, and system Python installations
-* **Rich CLI Experience**: Colorized output, progress bars, detailed help, and verbose/quiet modes
-* **Comprehensive Logging**: Multiple log levels, formatted output, and error tracking
-* **AI-Powered Tag Generation**: Automatically generates relevant tags from video content analysis
-* **YAML Front Matter**: Rich metadata in structured YAML format with video details and tags
-* **Automatic Bookmark Updates**: Updates Raindrop bookmarks with AI-generated tags
-* **Vertex AI Integration**: Utilizes Google Cloud Vertex AI Gemini model for structured summaries
-* **Markdown Output**: Saves well-formatted summaries with comprehensive metadata and clear sections
-* **Flexible Filtering**: Collection-based filtering, tag filtering, and dry-run capabilities
+## 🎯 What It Does
 
-## Prerequisites
+Transform your video bookmark collection into structured, searchable summaries with AI-generated tags and comprehensive metadata. Perfect for researchers, content creators, and anyone who saves videos for later reference.
 
-Before you begin, ensure you have the following installed and configured:
+## ✨ Features
 
-  * **Deno**: The JavaScript/TypeScript runtime. If you don't have it, follow the installation instructions on the [Deno website](https://deno.land/).
-  * **Python 3.x**: The Python interpreter.
-  * **pipx**: Recommended for installing Python applications in isolated environments. Install it via `pip install pipx` or your system's package manager.
-  * **Google Cloud Project**: A Google Cloud project with the Vertex AI API enabled. You'll need a service account key or appropriate credentials configured for your environment.
-  * **Raindrop.io Account**: With an API token.
+### 🔧 Core Functionality
+- **🤖 AI-Powered Summarization**: Uses Google Cloud Vertex AI (Gemini) for intelligent video analysis
+- **🏷️ Smart Tag Generation**: Automatically generates 5-10 relevant tags from video content
+- **📊 Rich Metadata**: YAML front matter with comprehensive video details and timestamps
+- **🔄 Automatic Sync**: Updates Raindrop bookmarks with AI-generated tags
+- **📝 Structured Output**: Professional markdown summaries with consistent formatting
 
-## Setup
+### 🖥️ Interface Options
+- **💻 CLI Interface**: Rich command-line experience with colorized output and progress tracking
+- **🌐 Web Dashboard**: Modern web interface for managing summarization jobs and viewing results
+- **📱 Real-time Updates**: Live progress tracking and notifications via WebSocket
 
-### 1\. Environment Variables
+### 🔌 Integration & Setup
+- **🌧️ Raindrop.io Integration**: Seamless API integration with rate limiting and error handling
+- **🐍 Python Auto-Detection**: Automatically detects pipx, conda, and system Python installations
+- **⚙️ Interactive Setup**: Setup wizard with validation and helpful error messages
+- **🗄️ Database Storage**: SQLite database for tracking processed videos and job history
 
-Create a `.env` file in the root directory of your project with the following environment variables:
+### 🎛️ Advanced Features
+- **🔍 Smart Filtering**: Filter by collections, tags, or custom criteria
+- **🎯 Flexible Processing**: Batch processing with configurable limits and dry-run mode
+- **📊 Progress Tracking**: Detailed logging with multiple verbosity levels
+- **🔄 Resume Capability**: Resume interrupted processing sessions
+- **⚡ Performance**: Efficient processing with concurrent job handling
 
-```dotenv
-RAINDROP_TOKEN="your_raindrop_api_token"
-GOOGLE_CLOUD_PROJECT_ID="your_google_cloud_project_id"
-RAINDROP_COLLECTION_ID="optional_raindrop_collection_id" # Default to 0 (All bookmarks)
-MAX_VIDEOS=5 # Optional: Maximum number of videos to process, defaults to 5
-```
+## 📋 Prerequisites
 
-  * **`RAINDROP_TOKEN`**: Obtain this from your Raindrop.io settings (Integrations -\> Create new application).
-  * **`GOOGLE_CLOUD_PROJECT_ID`**: Your Google Cloud project ID.
-  * **`RAINDROP_COLLECTION_ID`**: The ID of the Raindrop collection you want to summarize videos from. If omitted or set to `0`, it will fetch from "All bookmarks."
-  * **`MAX_VIDEOS`**: The maximum number of video bookmarks to process in a single run. Defaults to `5`.
+Ensure you have the following before getting started:
 
-### 2\. Python Dependencies
+### Required Software
+- **[Deno](https://deno.land/)** (v1.45+) - JavaScript/TypeScript runtime
+- **Python** (3.8+) - For AI processing
+- **[pipx](https://pypa.github.io/pipx/)** (recommended) - For isolated Python package installation
 
-The Python script uses the `google-cloud-aiplatform` library and `PyYAML` for YAML front matter generation. It's recommended to install these in an isolated environment using `pipx`.
+### Required Accounts & Services
+- **[Google Cloud Platform](https://cloud.google.com/)**
+  - Project with Vertex AI API enabled
+  - Authentication configured (service account or `gcloud auth`)
+- **[Raindrop.io](https://raindrop.io/)** account with API access
 
+### Quick Installation
 ```bash
+# Install Deno (macOS/Linux)
+curl -fsSL https://deno.land/install.sh | sh
+
+# Install pipx
+pip install pipx
+
+# Install Python dependencies
 pipx install "google-cloud-aiplatform[vertexai]"
 pipx inject google-cloud-aiplatform pyyaml
 ```
 
-If you prefer not to use `pipx`, you can use `pip`:
+## ⚙️ Setup
+
+### 1. Clone & Navigate
+```bash
+git clone <repository-url>
+cd raindrop-agent
+```
+
+### 2. Environment Configuration
+
+Create a `.env` file in the project root:
 
 ```bash
+# Required
+RAINDROP_TOKEN="your_raindrop_api_token"
+GOOGLE_CLOUD_PROJECT_ID="your_google_cloud_project_id"
+
+# Optional
+RAINDROP_COLLECTION_ID=0  # 0 = All bookmarks, or specific collection ID
+MAX_VIDEOS=5              # Max videos per run
+```
+
+#### 🔑 Getting Your API Tokens
+
+**Raindrop.io API Token:**
+1. Go to [Raindrop.io Settings](https://app.raindrop.io/settings/integrations)
+2. Click "Create new app"
+3. Generate and copy your API token
+
+**Google Cloud Setup:**
+1. Create a [Google Cloud Project](https://console.cloud.google.com/)
+2. Enable the [Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com)
+3. Set up authentication:
+   ```bash
+   # Option 1: Application Default Credentials
+   gcloud auth application-default login
+   
+   # Option 2: Service Account (for production)
+   export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account.json"
+   ```
+
+### 3. Dependency Installation
+
+The application auto-detects Python environments in this order:
+1. **pipx** environments (recommended)
+2. **conda** environments
+3. **system** Python
+
+```bash
+# Recommended: pipx installation
+pipx install "google-cloud-aiplatform[vertexai]"
+pipx inject google-cloud-aiplatform pyyaml
+
+# Alternative: pip installation
 pip install "google-cloud-aiplatform[vertexai]" pyyaml
 ```
 
-The application will automatically detect your Python installation from:
-- pipx environments
-- conda environments  
-- system Python installations
-
-### 3\. Google Cloud Authentication
-
-Ensure your environment is authenticated to access Google Cloud. The Python script relies on the `GOOGLE_CLOUD_PROJECT_ID` environment variable. You might need to set up Google Cloud credentials, for example, by running `gcloud auth application-default login` or by setting the `GOOGLE_APPLICATION_CREDENTIALS` environment variable if you're using a service account key file.
-
-## Usage
-
-Navigate to the project's root directory in your terminal.
-
+### 4. Verify Setup
 ```bash
-cd your-repo-name
+# Test configuration and connections
+./run.sh --dry-run --verbose
 ```
 
-### Basic Run
+## 🚀 Usage
 
-The easiest way to run the summarizer is using the provided shell script:
+### CLI Interface
 
+#### Quick Start
 ```bash
+# Process 5 videos with default settings
 ./run.sh
+
+# Alternative methods
+deno task start              # Using Deno tasks
+deno run --allow-all main.ts # Direct Deno command
 ```
 
-Alternative methods:
+#### Command Options
+| Option | Description | Example |
+|--------|-------------|---------|
+| `-h, --help` | Show detailed help and examples | `./run.sh --help` |
+| `-v, --version` | Display version information | `./run.sh --version` |
+| `-t, --tag <tag>` | Process only bookmarks with specific tag | `./run.sh --tag programming` |
+| `-c, --collection <id>` | Target specific Raindrop collection | `./run.sh --collection 123456` |
+| `-n, --max-videos <num>` | Limit number of videos to process | `./run.sh --max-videos 10` |
+| `-o, --output <path>` | Custom output directory | `./run.sh --output ./my-summaries` |
+| `--config <file>` | Load configuration from file | `./run.sh --config ./custom.env` |
+| `--dry-run` | Preview what would be processed | `./run.sh --dry-run --verbose` |
+| `--verbose` | Enable detailed logging | `./run.sh --verbose` |
+| `--quiet` | Minimize output (errors only) | `./run.sh --quiet` |
+
+#### Usage Examples
 ```bash
-# Using Deno tasks
-deno task start
+# Basic usage
+./run.sh
 
-# Direct Deno command
-deno run --allow-all main.ts
+# Process specific tag with limit
+./run.sh --tag "machine learning" --max-videos 15
+
+# Dry run to preview
+./run.sh --dry-run --verbose
+
+# Custom collection and output
+./run.sh -c 789012 -o ./research-summaries
+
+# Development with file watching
+deno task dev
 ```
 
-This command will:
+### Web Interface
 
-1.  Load your configuration from `.env`.
-2.  Fetch bookmarks from your specified Raindrop collection (or all bookmarks).
-3.  Identify video links.
-4.  For each video (up to `MAX_VIDEOS`):
-    - Generate AI-powered tags based on video content analysis
-    - Create a comprehensive summary using Vertex AI
-    - Generate YAML front matter with metadata and tags
-    - Update the Raindrop bookmark with generated tags
-5.  Save the enriched summaries as Markdown files in the `./summaries` directory.
+Launch the web dashboard for a visual interface:
 
-### Options
+```bash
+# Start web server
+deno task web
 
-You can customize the behavior using command-line arguments:
+# Development with auto-reload
+deno task web-dev
+```
 
-  * **`--help`**: Show the detailed help message with examples.
-    ```bash
-    ./run.sh --help
-    ```
-  * **`--tag=<tag>`**: Only process bookmarks with a specific tag.
-    ```bash
-    ./run.sh --tag=youtube
-    ```
-  * **`--collection=<id>`**: Specify a Raindrop collection ID.
-    ```bash
-    ./run.sh --collection=123456789
-    ```
-  * **`--max-videos=<num>`**: Set maximum number of videos to process.
-    ```bash
-    ./run.sh --max-videos=10
-    ```
-  * **`--dry-run`**: Fetch URLs but do not perform summarization.
-    ```bash
-    ./run.sh --dry-run --verbose
-    ```
-  * **`--verbose`**: Enable detailed logging.
-    ```bash
-    ./run.sh --verbose
-    ```
-  * **`--quiet`**: Suppress non-error output.
-    ```bash
-    ./run.sh --quiet
-    ```
+Access the dashboard at `http://localhost:3000` for:
+- 📊 Job queue management
+- 📱 Real-time progress tracking  
+- 📚 Summary browsing and search
+- ⚙️ Configuration management
 
-## Output
+### Processing Workflow
 
-Summarized videos will be saved as Markdown (`.md`) files in the `./summaries` directory, with filenames derived from the video URL (e.g., `youtube_video_id-summary.md`). Each summary includes:
+When you run the application, it:
 
-* **YAML Front Matter**: Comprehensive metadata including video details, timestamps, and tags
-* **AI-Generated Tags**: Automatically generated tags based on content analysis
-* **Structured Summary**: Both short and exhaustive versions with clear formatting
-* **Automatic Tag Updates**: Generated tags are automatically added to your Raindrop bookmarks
+1. **🔍 Discovery**: Fetches bookmarks from Raindrop.io
+2. **🎥 Detection**: Identifies YouTube video URLs  
+3. **🤖 Analysis**: Generates AI summaries and tags using Vertex AI
+4. **💾 Storage**: Saves structured markdown files with YAML metadata
+5. **🔄 Sync**: Updates Raindrop bookmarks with generated tags
+6. **📊 Reporting**: Provides detailed statistics and results
 
-### Example Output Format
+## 📄 Output Format
+
+### File Structure
+```
+summaries/
+├── dQw4w9WgXcQ-never_gonna_give_you_up.md
+├── FLpS7OfD5-s-why_mcp_really_is_a_big_deal.md
+└── UgHbHqg_Wmo-tmux_agents_are_here.md
+```
+
+### Content Features
+
+Each generated summary includes:
+
+- **📊 YAML Front Matter**: Structured metadata with video details and tags
+- **🏷️ AI-Generated Tags**: 5-10 relevant tags based on content analysis  
+- **📝 Professional Summary**: Executive summary, detailed breakdown, and key takeaways
+- **🔄 Automatic Sync**: Tags automatically added to your Raindrop bookmarks
+- **📈 Quality Assessment**: Content rating and practical applicability scores
+- **🎯 Target Audience**: Prerequisites and recommended background knowledge
+
+### Example Output
 
 ```yaml
 ---
-title: "Video Title"
-url: "https://youtube.com/watch?v=..."
+title: "Building Modern AI Applications with TypeScript"
+url: "https://youtube.com/watch?v=dQw4w9WgXcQ"
 platform: "YouTube"
 video_id: "dQw4w9WgXcQ"
 generated: "2025-01-25T18:00:44.123456"
 raindrop_created: "2024-01-15T10:30:00.000Z"
 domain: "youtu.be"
 tags:
-  - programming
+  - typescript
+  - ai-development
+  - machine-learning
   - tutorial
-  - javascript
-  - ai-generated-tag
-original_tags: ["programming"]
-generated_tags: ["tutorial", "javascript", "ai-generated-tag"]
+  - programming
+  - web-development
 ---
 
-# 📹 Video Summary
+# 📹 Building Modern AI Applications with TypeScript
 
-> **Video URL**: https://youtube.com/watch?v=...
+> **Video URL**: https://youtube.com/watch?v=dQw4w9WgXcQ  
+> **Generated**: 2025-01-25  
 > **Platform**: YouTube
-> **Generated**: 2025-01-25
 
-## 🔍 Quick Summary
-[AI-generated short summary]
+---
 
-## 📝 Detailed Summary
-[AI-generated comprehensive summary]
+## 🎯 Executive Summary
+Comprehensive guide to building AI-powered web applications using TypeScript, covering modern frameworks, best practices, and deployment strategies for production-ready systems.
+
+---
+
+## 📋 Key Information
+
+| **Aspect** | **Details** |
+|------------|-------------|
+| **Duration** | 45 minutes |
+| **Speaker/Creator** | Jane Developer |
+| **Main Topic** | TypeScript AI Development |
+| **Content Type** | Tutorial/Walkthrough |
+| **Difficulty Level** | Intermediate |
+
+[... comprehensive structured content continues ...]
 ```
 
-## Project Structure
+## 🏗️ Project Architecture
 
+### Directory Structure
 ```
 raindrop-agent/
-├── main.ts                     # Main application orchestrator
-├── video_summarizer.py         # Python AI summarization script
-├── src/                        # Modular TypeScript source code
-│   ├── types.ts               # Shared TypeScript interfaces
-│   ├── config/
-│   │   └── config.ts          # Configuration management
-│   ├── utils/
-│   │   └── logger.ts          # Enhanced logging utilities
-│   ├── api/
-│   │   └── raindrop.ts        # Raindrop.io API integration
-│   ├── video/
-│   │   ├── detector.ts        # Video URL detection
-│   │   └── python-integration.ts # Python environment integration
-│   └── cli/
-│       └── cli.ts             # Command-line interface
-├── deno.json                   # Deno configuration and tasks
-├── run.sh                      # Convenient shell script
-├── .env                        # Environment variables (not in git)
-└── summaries/                  # Generated video summaries
+├── 📁 src/                          # Modular TypeScript source
+│   ├── 📄 types.ts                  # Shared interfaces & types
+│   ├── 📁 config/
+│   │   └── config.ts                # Configuration management
+│   ├── 📁 utils/
+│   │   ├── logger.ts                # Enhanced logging system
+│   │   ├── yaml-parser.ts           # YAML processing utilities
+│   │   └── tag-updater.ts           # Raindrop tag management
+│   ├── 📁 api/
+│   │   └── raindrop.ts              # Raindrop.io API client
+│   ├── 📁 video/
+│   │   ├── detector.ts              # Video URL detection
+│   │   └── python-integration.ts    # Python environment detection
+│   ├── 📁 cli/
+│   │   └── cli.ts                   # Command-line interface
+│   ├── 📁 web/                      # Web interface components
+│   │   ├── server.ts                # Web server & API routes
+│   │   ├── 📁 services/             # Job queue & real-time services
+│   │   ├── 📁 models/               # Data models & schemas
+│   │   └── 📁 middleware/           # Authentication & middleware
+│   └── 📁 db/
+│       └── database.ts              # SQLite database operations
+├── 📄 main.ts                       # CLI application entry point
+├── 📄 video_summarizer.py           # AI summarization engine
+├── 📄 deno.json                     # Deno configuration & tasks
+├── 📄 run.sh                        # Convenience shell script
+├── 📄 .env                          # Environment configuration
+├── 📁 summaries/                    # Generated markdown summaries
+├── 📁 data/                         # SQLite database storage
+└── 📁 docs/                         # Project documentation
 ```
 
-## Architecture
+### Core Components
 
-The application follows a modular architecture:
+#### 🎛️ Configuration & Setup
+- **Interactive Setup Wizard**: Guides users through initial configuration
+- **Environment Validation**: Checks API tokens, Python dependencies, and permissions
+- **Multi-Environment Support**: Development, production, and testing configurations
 
-1. **Enhanced Configuration Management**: Validation, interactive setup wizard, error handling
-2. **Robust API Integration**: Rate limiting, error handling, connection testing
-3. **Smart Video Detection**: Platform-specific ID extraction, URL validation
-4. **Intelligent Python Integration**: Auto-detects pipx, conda, system Python installations
-5. **Rich CLI Experience**: Colorized output, progress bars, detailed help, verbose/quiet modes
-6. **Comprehensive Logging**: Multiple log levels, formatted output, error tracking
+#### 🔌 API Integration Layer
+- **Raindrop.io Client**: Rate-limited API client with retry logic and error handling
+- **Vertex AI Integration**: Google Cloud AI platform integration with authentication
+- **Database Layer**: SQLite for job tracking, progress persistence, and metadata storage
 
-## Data Flow
+#### 🎥 Video Processing Pipeline
+- **Smart URL Detection**: Extracts video IDs from various YouTube URL formats
+- **Python Environment Auto-Detection**: Supports pipx, conda, and system Python installations
+- **Batch Processing**: Concurrent video processing with configurable limits and resume capability
 
-1. Parse CLI arguments with enhanced validation
-2. Load and validate configuration (with interactive prompts if needed)
-3. Test API connections and Python environment
-4. Fetch bookmarks with pagination and rate limiting
-5. Filter and detect YouTube videos with detailed breakdown
-6. Process videos with progress tracking and error handling
-7. Generate comprehensive statistics and results
+#### 🖥️ User Interfaces
+- **Rich CLI Experience**: Colorized output, progress bars, and interactive prompts
+- **Web Dashboard**: Modern interface for job management, progress tracking, and summary browsing
+- **Real-time Updates**: WebSocket integration for live progress and status updates
+
+### Data Flow Architecture
+
+```mermaid
+graph TD
+    A[CLI/Web Input] --> B[Configuration Loader]
+    B --> C[Environment Validator]
+    C --> D[Raindrop API Client]
+    D --> E[Video URL Detector]
+    E --> F[Python Environment]
+    F --> G[Vertex AI Processor]
+    G --> H[YAML Generator]
+    H --> I[File System Writer]
+    I --> J[Database Storage]
+    J --> K[Tag Updater]
+    K --> L[Results Reporter]
+    
+    style A fill:#e1f5fe
+    style G fill:#f3e5f5
+    style L fill:#e8f5e8
+```
+
+1. **🔍 Input Processing**: Parse CLI arguments or web requests with validation
+2. **⚙️ Configuration**: Load environment variables and validate API access
+3. **🌧️ Data Fetching**: Retrieve bookmarks from Raindrop.io with pagination
+4. **🎥 Video Detection**: Identify and validate YouTube video URLs
+5. **🤖 AI Processing**: Generate summaries and tags using Vertex AI
+6. **💾 Content Generation**: Create structured markdown with YAML front matter
+7. **🔄 Synchronization**: Update Raindrop bookmarks with generated tags
+8. **📊 Reporting**: Provide detailed statistics and progress updates
+
+## 🛠️ Development
+
+### Available Tasks
+```bash
+# Development
+deno task dev          # Run with file watching
+deno task web-dev      # Web server with auto-reload
+
+# Code Quality
+deno task check        # Type checking
+deno task fmt          # Format code
+deno task lint         # Lint code
+
+# Utilities
+deno task help         # Show CLI help
+deno task version      # Show version
+deno task dry-run      # Preview processing
+```
+
+### Contributing
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes and test thoroughly
+4. Run code quality checks: `deno task fmt && deno task lint && deno task check`
+5. Submit a pull request with a clear description
+
+### Testing
+```bash
+# Test with dry run
+./run.sh --dry-run --verbose
+
+# Test specific scenarios
+./run.sh --tag test --max-videos 1 --verbose
+
+# Web interface testing
+deno task web-dev
+```
+
+## 🤝 Support & Community
+
+### Getting Help
+- 📖 Check the [documentation](./docs/) for detailed guides
+- 💬 Review existing [issues](https://github.com/your-username/raindrop-agent/issues) 
+- 🐛 Report bugs with detailed reproduction steps
+- 💡 Request features with clear use cases
+
+### Common Issues
+
+**Python Environment Issues:**
+```bash
+# Verify Python installation
+which python3
+python3 --version
+
+# Check dependencies
+pipx list | grep google-cloud-aiplatform
+```
+
+**API Connection Issues:**
+```bash
+# Test Raindrop.io connection
+curl -H "Authorization: Bearer $RAINDROP_TOKEN" https://api.raindrop.io/rest/v1/user
+
+# Verify Google Cloud authentication
+gcloud auth list
+```
+
+**Permission Issues:**
+```bash
+# Make run script executable
+chmod +x run.sh
+
+# Check file permissions
+ls -la summaries/
+```
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Raindrop.io](https://raindrop.io/) for the excellent bookmarking API
+- [Google Cloud Vertex AI](https://cloud.google.com/vertex-ai) for powerful AI capabilities
+- [Deno](https://deno.land/) for the modern TypeScript runtime
+- The open-source community for inspiration and tools
 
 ---
+
+**Made with ❤️ for better video bookmark management**
