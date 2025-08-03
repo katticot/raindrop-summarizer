@@ -8,6 +8,7 @@ import { PythonIntegration, PythonIntegrationError } from "./src/video/python-in
 import { TagUpdater } from "./src/utils/tag-updater.ts";
 import { Database, DatabaseError } from "./src/db/database.ts";
 import { CLIOptions, Config, ProcessingStats, RaindropItem } from "./src/types.ts";
+import { YouTubePlaylistLister, YouTubePlaylistVideo } from "./src/youtube/playlist.ts";
 
 class VideoSummarizer {
 	private cli: CLI;
@@ -64,6 +65,17 @@ class VideoSummarizer {
 				return;
 			}
 
+			if (options.listMyPlaylists) {
+				await this.listMyPlaylists(config);
+				return;
+			}
+
+			// Handle playlist operations
+			if (options.playlist) {
+				await this.handlePlaylistOperations(config, options);
+				return;
+			}
+
 			// Test connections
 			await this.testConnections();
 
@@ -79,7 +91,7 @@ class VideoSummarizer {
 			// Create output directory
 			await this.ensureOutputDirectory(config.outputPath);
 
-			// Process videos
+			// Process videos (only if not handling playlist operations)
 			const stats = await this.processVideos(config, options);
 
 			// Show final statistics
@@ -485,14 +497,13 @@ class VideoSummarizer {
 	 */
 	private async updateTagsFromMarkdown(config: Config): Promise<void> {
 		try {
-			this.logger.info("🏷️  Starting tag update from markdown files...\n");
+			this.logger.info("🏷️  Starting tag update from database...\n");
 
 			// Create tag updater instance
-			const tagUpdater = new TagUpdater(this.raindropAPI);
+			const tagUpdater = new TagUpdater(this.raindropAPI, this.database);
 
-			// Update tags from markdown files
-			const stats = await tagUpdater.updateTagsFromDirectory(
-				config.outputPath,
+			// Update tags from database
+			const stats = await tagUpdater.updateTagsFromDatabase(
 				config.collectionId,
 			);
 
@@ -500,9 +511,155 @@ class VideoSummarizer {
 			tagUpdater.showUpdateStats(stats);
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			this.logger.error(`Failed to update tags from markdown files: ${errorMessage}`);
+			this.logger.error(`Failed to update tags from database: ${errorMessage}`);
 			throw error;
 		}
+	}
+
+	/**
+	 * Handle YouTube playlist operations
+	 */
+	private async handlePlaylistOperations(config: Config, options: CLIOptions): Promise<void> {
+		if (!config.youtubeApiKey) {
+			this.logger.error("YouTube API key is required for playlist operations.");
+			this.logger.info("Please set YOUTUBE_API_KEY in your .env file.");
+			this.logger.info("Get your API key from: https://console.developers.google.com/");
+			return;
+		}
+
+		if (!options.playlist) {
+			this.logger.error("Playlist ID is required. Use --playlist <id>");
+			return;
+		}
+
+		try {
+			const lister = new YouTubePlaylistLister({ apiKey: config.youtubeApiKey });
+			const playlistId = options.playlist;
+
+			if (options.listPlaylist) {
+				// Just list videos in the playlist
+				await this.listPlaylistVideos(lister, playlistId);
+			} else {
+				// Process videos from the playlist
+				await this.processPlaylistVideos(lister, playlistId, config, options);
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`Playlist operation failed: ${errorMessage}`);
+			throw error;
+		}
+	}
+
+	/**
+	 * List videos in a YouTube playlist
+	 */
+	private async listPlaylistVideos(lister: YouTubePlaylistLister, playlistId: string): Promise<void> {
+		this.logger.loading("Fetching playlist information...");
+
+		const playlist = await lister.getCompletePlaylist(playlistId);
+
+		console.log(`\n🎬 ${playlist.title}`);
+		console.log(`📺 Channel: ${playlist.channelTitle}`);
+		console.log(`📝 ${playlist.description.substring(0, 100)}${playlist.description.length > 100 ? '...' : ''}`);
+		console.log(`📊 ${playlist.videos.length} videos\n`);
+
+		playlist.videos.forEach((video, index) => {
+			console.log(`${(index + 1).toString().padStart(3)}. ${video.title}`);
+			console.log(`     https://youtube.com/watch?v=${video.videoId}`);
+			console.log(`     Channel: ${video.channelTitle}`);
+			console.log(`     Published: ${new Date(video.publishedAt).toLocaleDateString()}\n`);
+		});
+	}
+
+	/**
+	 * List YouTube playlists (requires OAuth for personal playlists)
+	 */
+	private async listMyPlaylists(config: Config): Promise<void> {
+		if (!config.youtubeApiKey) {
+			this.logger.error("❌ YouTube API key is required to list playlists.");
+			this.logger.info("Please set YOUTUBE_API_KEY in your .env file.");
+			this.logger.info("Get your API key from: https://console.developers.google.com/");
+			return;
+		}
+
+		console.log("\n❌ Personal playlist listing requires OAuth 2.0 authentication");
+		console.log("This feature would need additional setup with Google OAuth credentials.");
+		console.log("\n🔧 Alternative options:");
+		console.log("1. Use YouTube's web interface to find your playlist IDs");
+		console.log("2. List public playlists from any channel using channel ID");
+		console.log("3. Search for playlists by name");
+		
+		console.log("\n💡 Available workarounds:");
+		console.log("   # Search for playlists by name");
+		console.log("   # (This would require implementing search functionality)");
+		
+		console.log("\n   # To process videos from a known playlist:");
+		console.log("   --playlist <playlist_id>");
+		
+		console.log("\n   # To list videos in a known playlist:");
+		console.log("   --playlist <playlist_id> --list-playlist");
+		
+		console.log("\n📌 To find your playlist IDs:");
+		console.log("   1. Go to YouTube.com");
+		console.log("   2. Navigate to your playlists");
+		console.log("   3. Copy the playlist ID from the URL (after 'list=')");
+	}
+
+	/**
+	 * Process videos from a YouTube playlist
+	 */
+	private async processPlaylistVideos(
+		lister: YouTubePlaylistLister,
+		playlistId: string,
+		config: Config,
+		options: CLIOptions
+	): Promise<void> {
+		this.logger.loading("Fetching playlist videos...");
+
+		const playlist = await lister.getCompletePlaylist(playlistId);
+		this.logger.info(`Found playlist: ${playlist.title} with ${playlist.videos.length} videos`);
+
+		// Convert playlist videos to RaindropItem format for processing
+		const videoBookmarks: RaindropItem[] = playlist.videos.slice(0, config.maxVideos).map((video) => ({
+			_id: `playlist_${video.videoId}`,
+			title: video.title,
+			link: `https://youtube.com/watch?v=${video.videoId}`,
+			tags: [`playlist:${playlist.title}`, 'youtube'],
+			created: video.publishedAt,
+			type: 'link',
+			domain: 'youtube.com'
+		}));
+
+		this.logger.info(`Processing ${videoBookmarks.length} videos from playlist...`);
+
+		if (options.dryRun) {
+			this.logger.info("🧪 DRY RUN MODE - Videos that would be processed:");
+			videoBookmarks.forEach((bookmark, index) => {
+				console.log(`  ${index + 1}. ${bookmark.title}`);
+				console.log(`     ${bookmark.link}`);
+			});
+			return;
+		}
+
+		// Create output directory
+		await this.ensureOutputDirectory(config.outputPath);
+
+		// Process videos with stats tracking
+		const stats: ProcessingStats = {
+			totalBookmarks: playlist.videos.length,
+			videoBookmarks: videoBookmarks.length,
+			processed: videoBookmarks.length,
+			successful: 0,
+			failed: 0,
+			skipped: 0,
+			startTime: new Date(),
+		};
+
+		// Process videos concurrently
+		await this.processVideosConcurrently(videoBookmarks, config, stats);
+
+		stats.endTime = new Date();
+		this.showFinalResults(stats);
 	}
 
 	/**

@@ -9,6 +9,19 @@ export interface ProcessedVideo {
 	summary_file_path: string;
 	processed_at: string;
 	raindrop_bookmark_id: string;
+	generated?: string;
+	raindrop_created?: string;
+	domain?: string;
+	tags?: string; // JSON string of tag array
+	summary_content?: string; // Summary text content
+	thumbnail_url?: string;
+	duration?: string;
+	status?: string; // 'pending' | 'processing' | 'completed' | 'failed'
+	progress?: number;
+	word_count?: number;
+	file_size?: number;
+	processing_time?: number;
+	error_message?: string;
 }
 
 // SQLite database interface to avoid 'any' type
@@ -80,6 +93,19 @@ export class Database {
 				summary_file_path TEXT NOT NULL,
 				processed_at TEXT NOT NULL,
 				raindrop_bookmark_id TEXT NOT NULL,
+				generated TEXT,
+				raindrop_created TEXT,
+				domain TEXT,
+				tags TEXT, 
+				summary_content TEXT,
+				thumbnail_url TEXT,
+				duration TEXT,
+				status TEXT DEFAULT 'completed',
+				progress INTEGER DEFAULT 100,
+				word_count INTEGER,
+				file_size INTEGER,
+				processing_time INTEGER,
+				error_message TEXT,
 				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 			)
 		`;
@@ -141,8 +167,10 @@ export class Database {
 		try {
 			const stmt = this.db.prepare(`
 				INSERT OR REPLACE INTO processed_videos 
-				(video_id, url, title, summary_file_path, processed_at, raindrop_bookmark_id)
-				VALUES (?, ?, ?, ?, ?, ?)
+				(video_id, url, title, summary_file_path, processed_at, raindrop_bookmark_id,
+				 generated, raindrop_created, domain, tags, summary_content, thumbnail_url,
+				 duration, status, progress, word_count, file_size, processing_time, error_message)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`);
 
 			stmt.run(
@@ -152,6 +180,19 @@ export class Database {
 				processedVideo.summary_file_path,
 				processedVideo.processed_at,
 				processedVideo.raindrop_bookmark_id,
+				processedVideo.generated,
+				processedVideo.raindrop_created,
+				processedVideo.domain,
+				processedVideo.tags ? JSON.stringify(processedVideo.tags) : null,
+				processedVideo.summary_content,
+				processedVideo.thumbnail_url,
+				processedVideo.duration,
+				processedVideo.status || 'completed',
+				processedVideo.progress || 100,
+				processedVideo.word_count,
+				processedVideo.file_size,
+				processedVideo.processing_time,
+				processedVideo.error_message,
 			);
 
 			this.logger.debug(`Marked video as processed: ${processedVideo.video_id}`);
@@ -174,15 +215,40 @@ export class Database {
 			const stmt = this.db.prepare(sql);
 			const results = stmt.all();
 
-			return results.map((row: Record<string, unknown>) => ({
-				id: typeof row.id === "number" ? row.id : undefined,
-				video_id: String(row.video_id || ""),
-				url: String(row.url || ""),
-				title: String(row.title || ""),
-				summary_file_path: String(row.summary_file_path || ""),
-				processed_at: String(row.processed_at || ""),
-				raindrop_bookmark_id: String(row.raindrop_bookmark_id || ""),
-			}));
+			return results.map((row: Record<string, unknown>) => {
+				const tagsString = row.tags ? String(row.tags) : null;
+				let parsedTags: string[] = [];
+				if (tagsString) {
+					try {
+						parsedTags = JSON.parse(tagsString);
+					} catch {
+						parsedTags = [];
+					}
+				}
+
+				return {
+					id: typeof row.id === "number" ? row.id : undefined,
+					video_id: String(row.video_id || ""),
+					url: String(row.url || ""),
+					title: String(row.title || ""),
+					summary_file_path: String(row.summary_file_path || ""),
+					processed_at: String(row.processed_at || ""),
+					raindrop_bookmark_id: String(row.raindrop_bookmark_id || ""),
+					generated: row.generated ? String(row.generated) : undefined,
+					raindrop_created: row.raindrop_created ? String(row.raindrop_created) : undefined,
+					domain: row.domain ? String(row.domain) : undefined,
+					tags: parsedTags.length > 0 ? JSON.stringify(parsedTags) : undefined,
+					summary_content: row.summary_content ? String(row.summary_content) : undefined,
+					thumbnail_url: row.thumbnail_url ? String(row.thumbnail_url) : undefined,
+					duration: row.duration ? String(row.duration) : undefined,
+					status: row.status ? String(row.status) : undefined,
+					progress: typeof row.progress === "number" ? row.progress : undefined,
+					word_count: typeof row.word_count === "number" ? row.word_count : undefined,
+					file_size: typeof row.file_size === "number" ? row.file_size : undefined,
+					processing_time: typeof row.processing_time === "number" ? row.processing_time : undefined,
+					error_message: row.error_message ? String(row.error_message) : undefined,
+				};
+			});
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			throw new DatabaseError(`Failed to get processed videos: ${errorMessage}`);
@@ -201,6 +267,16 @@ export class Database {
 				return null;
 			}
 
+			const tagsString = result.tags ? String(result.tags) : null;
+			let parsedTags: string[] = [];
+			if (tagsString) {
+				try {
+					parsedTags = JSON.parse(tagsString);
+				} catch {
+					parsedTags = [];
+				}
+			}
+
 			return {
 				id: typeof result.id === "number" ? result.id : undefined,
 				video_id: String(result.video_id || ""),
@@ -209,6 +285,19 @@ export class Database {
 				summary_file_path: String(result.summary_file_path || ""),
 				processed_at: String(result.processed_at || ""),
 				raindrop_bookmark_id: String(result.raindrop_bookmark_id || ""),
+				generated: result.generated ? String(result.generated) : undefined,
+				raindrop_created: result.raindrop_created ? String(result.raindrop_created) : undefined,
+				domain: result.domain ? String(result.domain) : undefined,
+				tags: parsedTags.length > 0 ? JSON.stringify(parsedTags) : undefined,
+				summary_content: result.summary_content ? String(result.summary_content) : undefined,
+				thumbnail_url: result.thumbnail_url ? String(result.thumbnail_url) : undefined,
+				duration: result.duration ? String(result.duration) : undefined,
+				status: result.status ? String(result.status) : undefined,
+				progress: typeof result.progress === "number" ? result.progress : undefined,
+				word_count: typeof result.word_count === "number" ? result.word_count : undefined,
+				file_size: typeof result.file_size === "number" ? result.file_size : undefined,
+				processing_time: typeof result.processing_time === "number" ? result.processing_time : undefined,
+				error_message: result.error_message ? String(result.error_message) : undefined,
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);

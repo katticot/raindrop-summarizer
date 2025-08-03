@@ -1,11 +1,11 @@
-// tag-updater.ts - Update Raindrop tags from markdown files
+// tag-updater.ts - Update Raindrop tags from database
 import { RaindropAPI } from "../api/raindrop.ts";
-import { YamlParser } from "./yaml-parser.ts";
+import { Database, ProcessedVideo } from "../db/database.ts";
 import { Logger } from "./logger.ts";
 import { RaindropItem } from "../types.ts";
 
 export interface TagUpdateResult {
-	filePath: string;
+	videoId: string;
 	videoUrl: string;
 	bookmarkId?: string;
 	tagsUpdated: boolean;
@@ -15,8 +15,8 @@ export interface TagUpdateResult {
 }
 
 export interface TagUpdateStats {
-	totalFiles: number;
-	validFiles: number;
+	totalVideos: number;
+	validVideos: number;
 	matchedBookmarks: number;
 	successfulUpdates: number;
 	failedUpdates: number;
@@ -25,27 +25,26 @@ export interface TagUpdateStats {
 
 export class TagUpdater {
 	private logger: Logger;
-	private yamlParser: YamlParser;
+	private database: Database;
 	private raindropAPI: RaindropAPI;
 
-	constructor(raindropAPI: RaindropAPI) {
+	constructor(raindropAPI: RaindropAPI, database: Database) {
 		this.logger = Logger.getInstance();
-		this.yamlParser = new YamlParser();
+		this.database = database;
 		this.raindropAPI = raindropAPI;
 	}
 
 	/**
-	 * Update Raindrop tags from all markdown files in a directory
+	 * Update Raindrop tags from all videos in database
 	 */
-	async updateTagsFromDirectory(
-		summariesPath: string,
+	async updateTagsFromDatabase(
 		collectionId: string = "0",
 	): Promise<TagUpdateStats> {
-		this.logger.info(`🏷️  Updating Raindrop tags from markdown files in ${summariesPath}`);
+		this.logger.info(`🏷️  Updating Raindrop tags from processed videos in database`);
 
 		const stats: TagUpdateStats = {
-			totalFiles: 0,
-			validFiles: 0,
+			totalVideos: 0,
+			validVideos: 0,
 			matchedBookmarks: 0,
 			successfulUpdates: 0,
 			failedUpdates: 0,
@@ -53,112 +52,109 @@ export class TagUpdater {
 		};
 
 		try {
-			// Get all markdown files
-			const markdownFiles = await this.yamlParser.getMarkdownFiles(summariesPath);
-			stats.totalFiles = markdownFiles.length;
+			// Get all processed videos from database
+			const processedVideos = this.database.getProcessedVideos();
+			stats.totalVideos = processedVideos.length;
 
-			if (markdownFiles.length === 0) {
-				this.logger.warn(`No markdown files found in ${summariesPath}`);
+			if (processedVideos.length === 0) {
+				this.logger.warn(`No processed videos found in database`);
 				return stats;
 			}
 
-			this.logger.info(`Found ${markdownFiles.length} markdown files to process`);
+			this.logger.info(`Found ${processedVideos.length} processed videos to sync`);
 
 			// Fetch all bookmarks from Raindrop to match against
 			this.logger.info("Fetching bookmarks from Raindrop...");
 			const bookmarks = await this.fetchAllBookmarks(collectionId);
 			this.logger.info(`Fetched ${bookmarks.length} bookmarks from Raindrop`);
 
-			// Process each markdown file
-			for (const filePath of markdownFiles) {
-				const result = await this.processMarkdownFile(filePath, bookmarks);
+			// Process each video from database
+			for (const video of processedVideos) {
+				const result = await this.processVideoFromDatabase(video, bookmarks);
 				stats.results.push(result);
 
 				if (result.error) {
 					stats.failedUpdates++;
-					this.logger.error(`❌ ${filePath.split("/").pop()}: ${result.error}`);
+					this.logger.error(`❌ ${video.video_id}: ${result.error}`);
 				} else if (result.tagsUpdated) {
 					stats.successfulUpdates++;
 					stats.matchedBookmarks++;
+					const tagChange = result.originalTags.length !== result.newTags.length 
+						? ` (${result.originalTags.length} → ${result.newTags.length} tags)`
+						: ` (${result.newTags.length} tags)`;
 					this.logger.success(
-						`✅ ${filePath.split("/").pop()}: Updated ${result.newTags.length} tags`,
+						`✅ ${video.video_id}: Force updated${tagChange}`,
 					);
 				} else {
-					this.logger.warn(`⚠️  ${filePath.split("/").pop()}: No matching bookmark found`);
+					this.logger.warn(`⚠️  ${video.video_id}: No matching bookmark found`);
 				}
 			}
 
-			// Count valid files
-			stats.validFiles = stats.results.filter((r) => !r.error).length;
+			// Count valid videos
+			stats.validVideos = stats.results.filter((r) => !r.error).length;
 			stats.matchedBookmarks = stats.results.filter((r) => r.bookmarkId).length;
 		} catch (error) {
-			this.logger.error(`Failed to update tags from directory: ${error}`);
+			this.logger.error(`Failed to update tags from database: ${error}`);
 		}
 
 		return stats;
 	}
 
 	/**
-	 * Process a single markdown file and update its corresponding bookmark
+	 * Process a single video from database and update its corresponding bookmark
 	 */
-	private async processMarkdownFile(
-		filePath: string,
+	private async processVideoFromDatabase(
+		video: ProcessedVideo,
 		bookmarks: RaindropItem[],
 	): Promise<TagUpdateResult> {
 		const result: TagUpdateResult = {
-			filePath,
-			videoUrl: "",
+			videoId: video.video_id,
+			videoUrl: video.url,
 			tagsUpdated: false,
 			originalTags: [],
 			newTags: [],
 		};
 
 		try {
-			// Parse the markdown file
-			const parsed = await this.yamlParser.parseMarkdownFile(filePath);
-			if (!parsed) {
-				result.error = "Failed to parse markdown file";
+			// Validate the video has required data
+			if (!video.url || !video.tags) {
+				result.error = "Missing required data (url or tags)";
 				return result;
 			}
-
-			// Validate the file has required data
-			if (!this.yamlParser.isValidForTagUpdate(parsed)) {
-				result.error = "Missing required front matter (url or tags)";
-				return result;
-			}
-
-			// Extract video URL
-			const videoUrl = this.yamlParser.extractVideoUrl(parsed);
-			if (!videoUrl) {
-				result.error = "Could not extract video URL";
-				return result;
-			}
-			result.videoUrl = videoUrl;
 
 			// Find matching bookmark
-			const matchedBookmark = this.findMatchingBookmark(videoUrl, bookmarks);
+			const matchedBookmark = this.findMatchingBookmark(video.url, bookmarks);
 			if (!matchedBookmark) {
 				result.error = "No matching bookmark found in Raindrop";
 				return result;
 			}
 			result.bookmarkId = matchedBookmark._id;
 
-			// Get tags from the markdown file
-			const markdownTags = this.yamlParser.getTagsForSync(parsed);
-			result.newTags = markdownTags;
+			// Get tags from the database
+			let videoTags: string[] = [];
+			try {
+				videoTags = JSON.parse(video.tags);
+			} catch {
+				result.error = "Invalid tags format in database";
+				return result;
+			}
+
+			result.newTags = videoTags;
 			result.originalTags = matchedBookmark.tags || [];
 
-			// Check if tags need updating
-			if (this.areTagsEqual(result.originalTags, markdownTags)) {
-				this.logger.debug(`Tags are already up to date for ${filePath}`);
-				result.tagsUpdated = false;
-				return result;
+			// Force update tags to ensure sync with generated tags and apply 10-tag limit
+			// Note: We force updates to ensure all bookmarks reflect the latest tags from AI
+			this.logger.debug(`Force updating tags for ${video.video_id} (${videoTags.length} tags)`);
+			
+			// Log the tag changes for transparency
+			if (result.originalTags.length !== videoTags.length || !this.areTagsEqual(result.originalTags, videoTags)) {
+				this.logger.debug(`Tag changes: ${result.originalTags.length} → ${videoTags.length} tags`);
 			}
 
 			// Update the bookmark tags
 			const updateSuccess = await this.raindropAPI.updateBookmarkTags(
 				matchedBookmark._id,
-				markdownTags,
+				videoTags,
 			);
 
 			if (updateSuccess) {
@@ -262,8 +258,8 @@ export class TagUpdater {
 	 */
 	showUpdateStats(stats: TagUpdateStats): void {
 		this.logger.info("\n📊 Tag Update Statistics:");
-		this.logger.info(`   Total Files: ${stats.totalFiles}`);
-		this.logger.info(`   Valid Files: ${stats.validFiles}`);
+		this.logger.info(`   Total Videos: ${stats.totalVideos}`);
+		this.logger.info(`   Valid Videos: ${stats.validVideos}`);
 		this.logger.info(`   Matched Bookmarks: ${stats.matchedBookmarks}`);
 		this.logger.info(`   Successful Updates: ${stats.successfulUpdates}`);
 
@@ -273,12 +269,12 @@ export class TagUpdater {
 
 		if (stats.successfulUpdates > 0) {
 			this.logger.success(
-				`\n✅ Successfully updated ${stats.successfulUpdates} bookmarks with tags from markdown files`,
+				`\n✅ Successfully updated ${stats.successfulUpdates} bookmarks with tags from database`,
 			);
 		}
 
 		if (stats.failedUpdates > 0) {
-			this.logger.warn(`\n⚠️  ${stats.failedUpdates} files could not be processed or updated`);
+			this.logger.warn(`\n⚠️  ${stats.failedUpdates} videos could not be processed or updated`);
 		}
 	}
 }
