@@ -26,8 +26,10 @@ export class CLI {
 				"update-tags",
 				"force",
 				"list-processed",
+				"list-playlist",
+				"list-my-playlists",
 			],
-			string: ["tag", "collection", "output", "config", "max-videos", "db-path", "concurrency"],
+			string: ["tag", "collection", "output", "config", "max-videos", "db-path", "concurrency", "playlist"],
 			alias: {
 				h: "help",
 				v: "version",
@@ -36,6 +38,7 @@ export class CLI {
 				o: "output",
 				n: "max-videos",
 				q: "quiet",
+				p: "playlist",
 			},
 			default: {
 				"dry-run": false,
@@ -44,6 +47,8 @@ export class CLI {
 				"update-tags": false,
 				force: false,
 				"list-processed": false,
+				"list-playlist": false,
+				"list-my-playlists": false,
 				output: "./summaries",
 			},
 		});
@@ -65,6 +70,9 @@ export class CLI {
 			listProcessed: args["list-processed"],
 			dbPath: args["db-path"],
 			concurrency: args.concurrency ? parseInt(args.concurrency) : undefined,
+			playlist: args.playlist,
+			listPlaylist: args["list-playlist"],
+			listMyPlaylists: args["list-my-playlists"],
 		};
 
 		// Validate numeric arguments
@@ -111,9 +119,12 @@ ${this.colorize("OPTIONS:", "yellow", true)}
   -c, --collection <id>   Raindrop collection ID (default: 0 for all bookmarks)
   -n, --max-videos <num>  Maximum videos to process (default: 5)
   -o, --output <path>     Output directory for summaries (default: ./summaries)
+  -p, --playlist <id>     Process videos from a YouTube playlist
+      --list-playlist     List videos in the specified playlist (requires --playlist)
+      --list-my-playlists Show information about listing your playlists (requires OAuth setup)
       --config <file>     Load configuration from file
       --dry-run           Show what would be processed without summarizing
-      --update-tags       Update Raindrop tags from existing markdown files
+      --update-tags       Force update Raindrop tags from markdown files (max 10 tags)
       --force             Re-process already summarized videos
       --list-processed    Show previously processed videos
       --db-path <path>    Custom database file path (default: ./data/processed_videos.db)
@@ -134,7 +145,16 @@ ${this.colorize("EXAMPLES:", "yellow", true)}
   ${this.colorize("# Process from specific collection with custom output", "gray")}
   deno run --allow-all raindrop_video_summarizer.ts -c 123456 -o ./my-summaries
 
-  ${this.colorize("# Update Raindrop tags from existing markdown files", "gray")}
+  ${this.colorize("# Process videos from a YouTube playlist", "gray")}
+  deno run --allow-all raindrop_video_summarizer.ts --playlist PLrAXtmRdnEQy5cV5
+
+  ${this.colorize("# List videos in a YouTube playlist", "gray")}
+  deno run --allow-all raindrop_video_summarizer.ts --playlist PLrAXtmRdnEQy5cV5 --list-playlist
+
+  ${this.colorize("# Get help for listing your YouTube playlists", "gray")}
+  deno run --allow-all raindrop_video_summarizer.ts --list-my-playlists
+
+  ${this.colorize("# Force update Raindrop tags from markdown files (max 10)", "gray")}
   deno run --allow-all raindrop_video_summarizer.ts --update-tags
 
   ${this.colorize("# Re-process already summarized videos", "gray")}
@@ -147,6 +167,7 @@ ${this.colorize("SETUP:", "yellow", true)}
   ${this.colorize("1. Create .env file with required variables:", "white")}
      RAINDROP_TOKEN="your_token"
      GOOGLE_CLOUD_PROJECT_ID="your_project_id"
+     YOUTUBE_API_KEY="your_youtube_api_key" (for playlist functionality)
 
   ${this.colorize("2. Install Python dependencies:", "white")}
      pipx install "google-cloud-aiplatform[vertexai]"
