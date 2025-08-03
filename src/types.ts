@@ -3,7 +3,6 @@
 export interface Config {
 	raindropToken: string;
 	googleCloudProjectId: string;
-	youtubeApiKey?: string;
 	collectionId: string;
 	maxVideos: number;
 	outputPath: string;
@@ -54,9 +53,6 @@ export interface CLIOptions {
 	listProcessed?: boolean;
 	dbPath?: string;
 	concurrency?: number;
-	playlist?: string;
-	listPlaylist?: boolean;
-	listMyPlaylists?: boolean;
 }
 
 export interface PythonEnvironment {

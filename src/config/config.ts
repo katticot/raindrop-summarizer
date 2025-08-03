@@ -47,7 +47,6 @@ export class ConfigManager {
 	private buildConfig(options: CLIOptions): Config {
 		const raindropToken = Deno.env.get("RAINDROP_TOKEN");
 		const googleCloudProjectId = Deno.env.get("GOOGLE_CLOUD_PROJECT_ID");
-		const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY");
 		const collectionIdEnv = Deno.env.get("RAINDROP_COLLECTION_ID") || "0";
 		const maxVideosEnv = Deno.env.get("MAX_VIDEOS");
 		const concurrencyEnv = Deno.env.get("CONCURRENCY");
@@ -77,7 +76,6 @@ export class ConfigManager {
 		return {
 			raindropToken: raindropToken || "",
 			googleCloudProjectId: googleCloudProjectId || "",
-			youtubeApiKey: youtubeApiKey || undefined,
 			collectionId: options.collection || collectionIdEnv,
 			maxVideos,
 			outputPath: options.output || "./summaries",
