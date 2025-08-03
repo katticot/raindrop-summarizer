@@ -64,6 +64,7 @@ class VideoSummarizer {
 				return;
 			}
 
+
 			// Test connections
 			await this.testConnections();
 
@@ -485,14 +486,13 @@ class VideoSummarizer {
 	 */
 	private async updateTagsFromMarkdown(config: Config): Promise<void> {
 		try {
-			this.logger.info("🏷️  Starting tag update from markdown files...\n");
+			this.logger.info("🏷️  Starting tag update from database...\n");
 
 			// Create tag updater instance
-			const tagUpdater = new TagUpdater(this.raindropAPI);
+			const tagUpdater = new TagUpdater(this.raindropAPI, this.database);
 
-			// Update tags from markdown files
-			const stats = await tagUpdater.updateTagsFromDirectory(
-				config.outputPath,
+			// Update tags from database
+			const stats = await tagUpdater.updateTagsFromDatabase(
 				config.collectionId,
 			);
 
@@ -500,10 +500,11 @@ class VideoSummarizer {
 			tagUpdater.showUpdateStats(stats);
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			this.logger.error(`Failed to update tags from markdown files: ${errorMessage}`);
+			this.logger.error(`Failed to update tags from database: ${errorMessage}`);
 			throw error;
 		}
 	}
+
 
 	/**
 	 * List previously processed videos

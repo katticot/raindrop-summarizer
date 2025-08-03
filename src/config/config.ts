@@ -139,6 +139,10 @@ RAINDROP_TOKEN="your_raindrop_api_token_here"
 # Required: Your Google Cloud project ID with Vertex AI enabled
 GOOGLE_CLOUD_PROJECT_ID="your_google_cloud_project_id"
 
+# Optional: YouTube Data API key for playlist functionality
+# Get from https://console.developers.google.com/
+YOUTUBE_API_KEY="your_youtube_api_key_here"
+
 # Optional: Specific collection ID (0 = all bookmarks)
 RAINDROP_COLLECTION_ID="0"
 

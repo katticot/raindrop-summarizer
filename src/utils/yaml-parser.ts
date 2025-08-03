@@ -132,24 +132,34 @@ export class YamlParser {
 
 	/**
 	 * Get tags that should be synced to Raindrop
-	 * Returns the combined tags (original + generated) if available
+	 * Returns the combined tags (original + generated) if available, limited to 10 tags
 	 */
 	getTagsForSync(parsed: ParsedMarkdown): string[] {
 		if (!parsed.frontMatter) {
 			return [];
 		}
 
+		let allTags: string[] = [];
+
 		// If we have tags array, use that (it should contain both original and generated)
 		if (parsed.frontMatter.tags && Array.isArray(parsed.frontMatter.tags)) {
-			return parsed.frontMatter.tags;
+			allTags = parsed.frontMatter.tags;
+		} else {
+			// Fallback: combine original_tags and generated_tags
+			const originalTags = parsed.frontMatter.original_tags || [];
+			const generatedTags = parsed.frontMatter.generated_tags || [];
+
+			// Combine and deduplicate
+			allTags = [...new Set([...originalTags, ...generatedTags])];
 		}
 
-		// Fallback: combine original_tags and generated_tags
-		const originalTags = parsed.frontMatter.original_tags || [];
-		const generatedTags = parsed.frontMatter.generated_tags || [];
+		// Filter out empty tags and limit to 10 tags
+		const filteredTags = allTags
+			.filter(tag => tag && typeof tag === 'string' && tag.trim().length > 0)
+			.map(tag => tag.trim())
+			.slice(0, 10); // Limit to maximum 10 tags
 
-		// Combine and deduplicate
-		return [...new Set([...originalTags, ...generatedTags])];
+		return filteredTags;
 	}
 
 	/**

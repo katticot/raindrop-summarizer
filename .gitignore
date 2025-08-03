@@ -64,13 +64,23 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Node.js (if using any)
+# Claude and temporary documentation
+.claude/
+*-caveat-the-messages-below-were-generated-by-the-u*.txt
+WEB_INTERFACE_SUMMARY.md
+
+# Node.js and Next.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 .npm
 .eslintcache
+.next/
+.turbo/
+next-env.d.ts
+out/
 
 # Temporary files
 *.tmp

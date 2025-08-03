@@ -113,7 +113,7 @@ ${this.colorize("OPTIONS:", "yellow", true)}
   -o, --output <path>     Output directory for summaries (default: ./summaries)
       --config <file>     Load configuration from file
       --dry-run           Show what would be processed without summarizing
-      --update-tags       Update Raindrop tags from existing markdown files
+      --update-tags       Force update Raindrop tags from markdown files (max 10 tags)
       --force             Re-process already summarized videos
       --list-processed    Show previously processed videos
       --db-path <path>    Custom database file path (default: ./data/processed_videos.db)
@@ -134,7 +134,8 @@ ${this.colorize("EXAMPLES:", "yellow", true)}
   ${this.colorize("# Process from specific collection with custom output", "gray")}
   deno run --allow-all raindrop_video_summarizer.ts -c 123456 -o ./my-summaries
 
-  ${this.colorize("# Update Raindrop tags from existing markdown files", "gray")}
+
+  ${this.colorize("# Force update Raindrop tags from markdown files (max 10)", "gray")}
   deno run --allow-all raindrop_video_summarizer.ts --update-tags
 
   ${this.colorize("# Re-process already summarized videos", "gray")}
