@@ -5,6 +5,11 @@
     "help": "deno run --allow-all main.ts --help",
     "version": "deno run --allow-all main.ts --version",
     "dry-run": "deno run --allow-all main.ts --dry-run --verbose",
+    "web": "npm run dev",
+    "web-dev": "npm run dev",
+    "kill-port": "lsof -ti:3000 | xargs kill -9 || echo 'No process found on port 3000'",
+    "web-restart": "deno task kill-port && deno task web",
+    "web-restart-dev": "deno task kill-port && deno task web-dev",
     "check": "deno check main.ts",
     "fmt": "deno fmt",
     "lint": "deno lint"

@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-An intelligent video summarization tool that automatically processes YouTube videos from your Raindrop.io bookmarks using Google Cloud's Vertex AI (Gemini model). Features both a powerful CLI interface and a modern web dashboard for managing video summarization workflows.
+An intelligent video summarization tool that automatically processes YouTube videos from your Raindrop.io bookmarks or directly from YouTube playlists using Google Cloud's Vertex AI (Gemini model). Features both a powerful CLI interface and a modern web dashboard for managing video summarization workflows.
 
 ## 🎯 What It Does
 
@@ -14,6 +14,7 @@ Transform your video bookmark collection into structured, searchable summaries w
 
 ### 🔧 Core Functionality
 - **🤖 AI-Powered Summarization**: Uses Google Cloud Vertex AI (Gemini) for intelligent video analysis
+- **🎬 YouTube Playlist Support**: Direct processing of entire YouTube playlists via YouTube Data API
 - **🏷️ Smart Tag Generation**: Automatically generates 5-10 relevant tags from video content
 - **📊 Rich Metadata**: YAML front matter with comprehensive video details and timestamps
 - **🔄 Automatic Sync**: Updates Raindrop bookmarks with AI-generated tags
@@ -26,6 +27,7 @@ Transform your video bookmark collection into structured, searchable summaries w
 
 ### 🔌 Integration & Setup
 - **🌧️ Raindrop.io Integration**: Seamless API integration with rate limiting and error handling
+- **📺 YouTube API Integration**: Direct playlist processing with automatic video extraction
 - **🐍 Python Auto-Detection**: Automatically detects pipx, conda, and system Python installations
 - **⚙️ Interactive Setup**: Setup wizard with validation and helpful error messages
 - **🗄️ Database Storage**: SQLite database for tracking processed videos and job history
@@ -51,6 +53,8 @@ Ensure you have the following before getting started:
   - Project with Vertex AI API enabled
   - Authentication configured (service account or `gcloud auth`)
 - **[Raindrop.io](https://raindrop.io/)** account with API access
+- **[YouTube Data API](https://console.developers.google.com/)** (optional, for playlist functionality)
+  - API key for accessing playlist data
 
 ### Quick Installation
 ```bash
@@ -83,6 +87,7 @@ RAINDROP_TOKEN="your_raindrop_api_token"
 GOOGLE_CLOUD_PROJECT_ID="your_google_cloud_project_id"
 
 # Optional
+YOUTUBE_API_KEY="your_youtube_api_key"  # For playlist functionality
 RAINDROP_COLLECTION_ID=0  # 0 = All bookmarks, or specific collection ID
 MAX_VIDEOS=5              # Max videos per run
 ```
@@ -105,6 +110,12 @@ MAX_VIDEOS=5              # Max videos per run
    # Option 2: Service Account (for production)
    export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account.json"
    ```
+
+**YouTube API Setup (Optional):**
+1. Go to [Google Developers Console](https://console.developers.google.com/)
+2. Enable YouTube Data API v3
+3. Create API credentials (API Key)
+4. Add the key to your `.env` file
 
 ### 3. Dependency Installation
 
@@ -151,6 +162,8 @@ deno run --allow-all main.ts # Direct Deno command
 | `-c, --collection <id>` | Target specific Raindrop collection | `./run.sh --collection 123456` |
 | `-n, --max-videos <num>` | Limit number of videos to process | `./run.sh --max-videos 10` |
 | `-o, --output <path>` | Custom output directory | `./run.sh --output ./my-summaries` |
+| `-p, --playlist <id>` | Process videos from YouTube playlist | `./run.sh --playlist PLrAXtmRdnEQy5cV5` |
+| `--list-playlist` | List videos in playlist without processing | `./run.sh --playlist PLxxx --list-playlist` |
 | `--config <file>` | Load configuration from file | `./run.sh --config ./custom.env` |
 | `--dry-run` | Preview what would be processed | `./run.sh --dry-run --verbose` |
 | `--verbose` | Enable detailed logging | `./run.sh --verbose` |
@@ -164,6 +177,12 @@ deno run --allow-all main.ts # Direct Deno command
 # Process specific tag with limit
 ./run.sh --tag "machine learning" --max-videos 15
 
+# Process YouTube playlist
+./run.sh --playlist PLrAXtmRdnEQy5cV5 --max-videos 20
+
+# List playlist videos without processing
+./run.sh --playlist PLrAXtmRdnEQy5cV5 --list-playlist
+
 # Dry run to preview
 ./run.sh --dry-run --verbose
 
@@ -173,6 +192,37 @@ deno run --allow-all main.ts # Direct Deno command
 # Development with file watching
 deno task dev
 ```
+
+### YouTube Playlist Processing
+
+Process videos directly from YouTube playlists without needing Raindrop bookmarks:
+
+#### Playlist Operations
+```bash
+# List all videos in a playlist
+./run.sh --playlist PLrAXtmRdnEQy5cV5 --list-playlist
+
+# Process first 10 videos from playlist
+./run.sh --playlist PLrAXtmRdnEQy5cV5 --max-videos 10
+
+# Preview what would be processed
+./run.sh --playlist PLrAXtmRdnEQy5cV5 --dry-run --verbose
+
+# Process with custom output directory
+./run.sh --playlist PLrAXtmRdnEQy5cV5 -o ./playlist-summaries
+```
+
+#### Supported Playlist URL Formats
+- `https://www.youtube.com/playlist?list=PLrAXtmRdnEQy5cV5`
+- `https://youtube.com/playlist?list=PLrAXtmRdnEQy5cV5`
+- `PLrAXtmRdnEQy5cV5` (direct playlist ID)
+
+#### Playlist Features
+- **Automatic Metadata**: Extracts playlist title, description, and video details
+- **Smart Tagging**: Videos are automatically tagged with `playlist:PlaylistName` and `youtube`
+- **Pagination Support**: Handles playlists of any size with automatic pagination
+- **Error Handling**: Gracefully skips private, deleted, or unavailable videos
+- **Progress Tracking**: Real-time progress updates during processing
 
 ### Web Interface
 
@@ -196,11 +246,11 @@ Access the dashboard at `http://localhost:3000` for:
 
 When you run the application, it:
 
-1. **🔍 Discovery**: Fetches bookmarks from Raindrop.io
-2. **🎥 Detection**: Identifies YouTube video URLs  
+1. **🔍 Discovery**: Fetches bookmarks from Raindrop.io OR videos from YouTube playlists
+2. **🎥 Detection**: Identifies YouTube video URLs and extracts metadata 
 3. **🤖 Analysis**: Generates AI summaries and tags using Vertex AI
 4. **💾 Storage**: Saves structured markdown files with YAML metadata
-5. **🔄 Sync**: Updates Raindrop bookmarks with generated tags
+5. **🔄 Sync**: Updates Raindrop bookmarks with generated tags (for bookmark processing)
 6. **📊 Reporting**: Provides detailed statistics and results
 
 ## 📄 Output Format
@@ -288,6 +338,8 @@ raindrop-agent/
 │   ├── 📁 video/
 │   │   ├── detector.ts              # Video URL detection
 │   │   └── python-integration.ts    # Python environment detection
+│   ├── 📁 youtube/
+│   │   └── playlist.ts              # YouTube playlist processing
 │   ├── 📁 cli/
 │   │   └── cli.ts                   # Command-line interface
 │   ├── 📁 web/                      # Web interface components
@@ -316,6 +368,7 @@ raindrop-agent/
 
 #### 🔌 API Integration Layer
 - **Raindrop.io Client**: Rate-limited API client with retry logic and error handling
+- **YouTube Data API**: Playlist processing with video metadata extraction and pagination
 - **Vertex AI Integration**: Google Cloud AI platform integration with authentication
 - **Database Layer**: SQLite for job tracking, progress persistence, and metadata storage
 
@@ -352,11 +405,11 @@ graph TD
 
 1. **🔍 Input Processing**: Parse CLI arguments or web requests with validation
 2. **⚙️ Configuration**: Load environment variables and validate API access
-3. **🌧️ Data Fetching**: Retrieve bookmarks from Raindrop.io with pagination
-4. **🎥 Video Detection**: Identify and validate YouTube video URLs
+3. **🌧️ Data Fetching**: Retrieve bookmarks from Raindrop.io OR videos from YouTube playlists
+4. **🎥 Video Detection**: Identify and validate YouTube video URLs with metadata extraction
 5. **🤖 AI Processing**: Generate summaries and tags using Vertex AI
 6. **💾 Content Generation**: Create structured markdown with YAML front matter
-7. **🔄 Synchronization**: Update Raindrop bookmarks with generated tags
+7. **🔄 Synchronization**: Update Raindrop bookmarks with generated tags (bookmark mode)
 8. **📊 Reporting**: Provide detailed statistics and progress updates
 
 ## 🛠️ Development
